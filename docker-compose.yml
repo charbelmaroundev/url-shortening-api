@@ -1,0 +1,68 @@
+version: '3.8'
+services:
+  api:
+    container_name: api
+    image: node:18-alpine
+    working_dir: /usr/src/app
+    ports:
+      - 3000:3000
+    volumes:
+      - .:/usr/src/app
+    env_file:
+    - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=url-shortening
+    command: npm run start:dev
+    depends_on:
+      - redis
+      - postgres
+      - prometheus
+
+  postgres:
+    container_name: postgres
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - '5433:5432'
+    volumes:
+      - url-shortening:/var/lib/postgresql/data
+
+  redis: 
+    container_name: redis
+    image: redis
+    ports:
+      - 6380:6379
+    volumes:
+      - redis:/data
+      
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus
+    ports:
+      - 9091:9090
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+    environment:
+      - TZ=UTC
+    volumes:
+      - prometheus_data:/prometheus
+    networks:
+      - url-shortening-network
+
+
+volumes:
+  redis:
+    driver: local
+  url-shortening:
+    driver: local
+  prometheus_data:
+    driver: local
+
+
+networks:
+  url-shortening-network:
+    driver: bridge
